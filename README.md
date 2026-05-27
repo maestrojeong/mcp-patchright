@@ -1,8 +1,8 @@
-# patchright-mcp
+# mcp-patchright
 
 🛡️ Undetectable browser MCP server — 30 tools, Patchright-powered, zero CDP fingerprint.
 
-[![npm]](https://npmjs.com/patchright-mcp) [![MCP]](https://modelcontextprotocol.io)
+[![npm]](https://npmjs.com/mcp-patchright) [![MCP]](https://modelcontextprotocol.io)
 
 Passes Cloudflare / Akamai / Kasada / Datadome.
 
@@ -21,8 +21,8 @@ See the [full comparison](#) for details.
 ## Quick start
 
 ```bash
-npm i -g patchright-mcp
-patchright-mcp --port 9321 --host 127.0.0.1
+npm i -g mcp-patchright
+mcp-patchright --port 9321 --host 127.0.0.1
 ```
 
 ### With Claude / GPT / agents
@@ -32,7 +32,7 @@ patchright-mcp --port 9321 --host 127.0.0.1
   "mcpServers": {
     "patchright": {
       "command": "npx",
-      "args": ["patchright-mcp", "--port", "9321", "--host", "127.0.0.1"]
+      "args": ["mcp-patchright", "--port", "9321", "--host", "127.0.0.1"]
     }
   }
 }
