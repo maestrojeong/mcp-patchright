@@ -63,13 +63,13 @@ function parseCli(argv = process.argv.slice(2)): CliOptions {
 }
 
 function printHelp(): void {
-  console.log(`stealth-playwright-mcp\n\nUsage:\n  stealth-playwright-mcp                         # stdio MCP transport\n  stealth-playwright-mcp --port 9100 [options]   # HTTP MCP transport\n\nOptions:\n  --host <host>              HTTP bind host (default: 127.0.0.1)\n  --port <port>              Enable HTTP mode on this port\n  --user-data-dir <path>     Default persistent browser profile directory\n  --headless                 Start browser headless by default\n  --headed                   Start browser headed by default\n`);
+  console.log(`patchright-mcp\n\nUsage:\n  patchright-mcp                         # stdio MCP transport\n  patchright-mcp --port 9100 [options]   # HTTP MCP transport\n\nOptions:\n  --host <host>              HTTP bind host (default: 127.0.0.1)\n  --port <port>              Enable HTTP mode on this port\n  --user-data-dir <path>     Default persistent browser profile directory\n  --headless                 Start browser headless by default\n  --headed                   Start browser headed by default\n`);
 }
 
 function createServer(defaultStartOptions: StartOptions = {}, sharedManager?: BrowserManager): ManagedServer {
   const server = new Server(
     {
-      name: "stealth-playwright-mcp",
+      name: "patchright-mcp",
       version: "0.1.0",
     },
     {
@@ -129,7 +129,7 @@ async function startHttp(options: CliOptions & { port: number }, defaultStartOpt
   const servers: Record<string, ManagedServer> = {};
 
   app.get("/health", async (_req: Request, res: Response) => {
-    res.json({ ok: true, name: "stealth-playwright-mcp", transports: Object.keys(transports).length, browser: await sharedManager.status().catch(() => undefined) });
+    res.json({ ok: true, name: "patchright-mcp", transports: Object.keys(transports).length, browser: await sharedManager.status().catch(() => undefined) });
   });
 
   app.all("/mcp", async (req: Request, res: Response) => {
@@ -234,7 +234,7 @@ async function startHttp(options: CliOptions & { port: number }, defaultStartOpt
   process.on("SIGINT", shutdown);
   process.on("SIGTERM", shutdown);
 
-  console.error(`stealth-playwright-mcp listening on http://${options.host}:${options.port}`);
+  console.error(`patchright-mcp listening on http://${options.host}:${options.port}`);
   console.error(`  SSE:        http://${options.host}:${options.port}/sse`);
   console.error(`  Streamable: http://${options.host}:${options.port}/mcp`);
 }
