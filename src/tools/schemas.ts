@@ -1,0 +1,132 @@
+import { z } from "zod";
+
+export const startSchema = z.object({
+  browser: z.enum(["chromium", "firefox", "webkit"]).optional(),
+  headless: z.boolean().optional(),
+  width: z.number().int().positive().optional(),
+  height: z.number().int().positive().optional(),
+  userAgent: z.string().optional(),
+  userDataDir: z.string().optional(),
+  channel: z.enum(["chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"]).optional(),
+  locale: z.string().optional(),
+  timezoneId: z.string().optional(),
+  cdpEndpoint: z.string().url().optional(),
+});
+
+export const navigateSchema = z.object({
+  url: z.string().url(),
+  waitUntil: z.enum(["load", "domcontentloaded", "networkidle", "commit"]).optional(),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const newPageSchema = z.object({
+  url: z.string().url().optional(),
+});
+
+export const pageIdSchema = z.object({
+  pageId: z.string().min(1),
+});
+
+export const closePageSchema = z.object({
+  pageId: z.string().min(1).optional(),
+});
+
+export const screenshotSchema = z.object({
+  path: z.string().optional(),
+  fullPage: z.boolean().optional(),
+});
+
+export const targetSchema = z
+  .object({
+    selector: z.string().min(1).optional(),
+    ref: z.string().min(1).optional(),
+    timeout: z.number().int().positive().optional(),
+  })
+  .refine((value) => !!value.selector !== !!value.ref, {
+    message: "Provide exactly one of selector or ref",
+  });
+
+export const fillSchema = targetSchema.extend({
+  text: z.string(),
+});
+
+export const typeSchema = targetSchema.extend({
+  text: z.string(),
+  delay: z.number().int().nonnegative().optional(),
+});
+
+export const pressSchema = z.object({
+  key: z.string().min(1),
+  selector: z.string().optional(),
+  ref: z.string().optional(),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const waitForSchema = z.object({
+  selector: z.string().min(1).optional(),
+  ref: z.string().min(1).optional(),
+  state: z.enum(["attached", "detached", "visible", "hidden"]).optional(),
+  timeout: z.number().int().positive().optional(),
+}).refine((value) => !(value.selector && value.ref), {
+  message: "Provide at most one of selector or ref",
+});
+
+export const evaluateSchema = z.object({
+  function: z.string().min(1).optional(),
+  expression: z.string().min(1).optional(),
+  script: z.string().min(1).optional(),
+}).refine(v => v.function || v.expression || v.script, {
+  message: "Provide function, expression, or script",
+});
+
+export const selectOptionSchema = targetSchema.extend({
+  values: z.array(z.string()).min(1),
+});
+
+export const dialogSchema = z.object({
+  accept: z.boolean(),
+  promptText: z.string().optional(),
+});
+
+export const fileUploadSchema = targetSchema.extend({
+  paths: z.array(z.string()).min(1),
+});
+
+export const networkRequestsSchema = z.object({
+  activeOnly: z.boolean().optional(),
+});
+
+export const networkRequestSchema = z.object({
+  index: z.number().int().nonnegative(),
+  details: z.boolean().optional(),
+});
+
+export const networkStateSchema = z.object({
+  offline: z.boolean(),
+});
+
+export const resizeSchema = z.object({
+  width: z.number().int().positive(),
+  height: z.number().int().positive(),
+});
+
+export const dragDropSchema = z.object({
+  source: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  target: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const fillFormSchema = z.object({
+  fields: z.array(z.object({
+    selector: z.string().optional(),
+    ref: z.string().optional(),
+    name: z.string().optional(),
+    value: z.string(),
+  })).min(1),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const runCodeSchema = z.object({
+  script: z.string().min(1),
+  args: z.array(z.unknown()).optional(),
+});

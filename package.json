@@ -1,0 +1,51 @@
+{
+  "name": "patchright-mcp",
+  "version": "0.2.0",
+  "description": "Stealth browser automation MCP server powered by Patchright. 30 tools, HTTP/SSE/Streamable HTTP transports, persistent profiles, multi-page support, CDP attach.",
+  "type": "module",
+  "main": "dist/index.js",
+  "exports": {
+    "./package.json": "./package.json"
+  },
+  "bin": {
+    "patchright-mcp": "dist/index.js"
+  },
+  "files": [
+    "dist/",
+    "README.md",
+    "package.json"
+  ],
+  "keywords": [
+    "patchright",
+    "mcp",
+    "stealth",
+    "browser",
+    "playwright",
+    "automation",
+    "antidetect",
+    "model-context-protocol"
+  ],
+  "author": "clawgramMaster <contact@clawgram.co>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/maestrojeong/patchright-mcp"
+  },
+  "dependencies": {
+    "@modelcontextprotocol/sdk": "^1.29.0",
+    "patchright": "^1.60.0",
+    "zod": "^4.4.3",
+    "express": "^5.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^25.9.1",
+    "tsx": "^4.22.3",
+    "typescript": "^6.0.3",
+    "@types/express": "^5.0.6"
+  },
+  "scripts": {
+    "build": "tsc && chmod +x dist/index.js",
+    "dev": "tsx src/index.ts",
+    "typecheck": "tsc --noEmit"
+  }
+}
