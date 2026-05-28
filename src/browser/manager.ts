@@ -24,6 +24,9 @@ export interface StartOptions {
   channel?: "chrome" | "chrome-beta" | "chrome-dev" | "chrome-canary" | "msedge";
   locale?: string;
   timezoneId?: string;
+  proxy?: { server: string; username?: string; password?: string; bypass?: string };
+  geolocation?: { latitude: number; longitude: number; accuracy?: number };
+  colorScheme?: "light" | "dark" | "no-preference";
   cdpEndpoint?: string;
 }
 
@@ -122,6 +125,8 @@ export class BrowserManager {
         ...(startOptions.userAgent ? { userAgent: startOptions.userAgent } : {}),
         ...(startOptions.locale ? { locale: startOptions.locale } : {}),
         ...(startOptions.timezoneId ? { timezoneId: startOptions.timezoneId } : {}),
+        ...(startOptions.geolocation ? { geolocation: startOptions.geolocation, permissions: ["geolocation"] } : {}),
+        ...(startOptions.colorScheme ? { colorScheme: startOptions.colorScheme } : {}),
       }));
       this.engine = "cdp";
       this.options = { ...startOptions, browser: browserName, headless, userDataDir };
@@ -147,6 +152,9 @@ export class BrowserManager {
       ...(startOptions.userAgent ? { userAgent: startOptions.userAgent } : {}),
       ...(startOptions.locale ? { locale: startOptions.locale } : {}),
       ...(startOptions.timezoneId ? { timezoneId: startOptions.timezoneId } : {}),
+      ...(startOptions.proxy ? { proxy: startOptions.proxy } : {}),
+      ...(startOptions.geolocation ? { geolocation: startOptions.geolocation, permissions: ["geolocation"] } : {}),
+      ...(startOptions.colorScheme ? { colorScheme: startOptions.colorScheme } : {}),
     });
     this.engine = "patchright";
     this.options = { ...startOptions, browser: browserName, headless, userDataDir };

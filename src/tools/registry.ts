@@ -22,6 +22,28 @@ export const tools: Tool[] = [
         channel: { type: "string", enum: ["chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"] },
         locale: { type: "string" },
         timezoneId: { type: "string" },
+        proxy: {
+          type: "object",
+          description: "Proxy for this session (persistent launch only). Keep IP country consistent with locale/timezone/geo to avoid bot detection.",
+          properties: {
+            server: { type: "string", description: "e.g. http://host:port or socks5://host:port" },
+            username: { type: "string" },
+            password: { type: "string" },
+            bypass: { type: "string", description: "Comma-separated hosts to bypass" },
+          },
+          required: ["server"],
+        },
+        geolocation: {
+          type: "object",
+          description: "Spoof geolocation. Grants the geolocation permission automatically.",
+          properties: {
+            latitude: { type: "number" },
+            longitude: { type: "number" },
+            accuracy: { type: "number" },
+          },
+          required: ["latitude", "longitude"],
+        },
+        colorScheme: { type: "string", enum: ["light", "dark", "no-preference"] },
         cdpEndpoint: { type: "string", description: "Existing Chrome remote debugging endpoint, e.g. http://127.0.0.1:9222" },
       },
     },

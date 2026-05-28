@@ -10,6 +10,18 @@ export const startSchema = z.object({
   channel: z.enum(["chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"]).optional(),
   locale: z.string().optional(),
   timezoneId: z.string().optional(),
+  proxy: z.object({
+    server: z.string(),
+    username: z.string().optional(),
+    password: z.string().optional(),
+    bypass: z.string().optional(),
+  }).optional(),
+  geolocation: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    accuracy: z.number().optional(),
+  }).optional(),
+  colorScheme: z.enum(["light", "dark", "no-preference"]).optional(),
   cdpEndpoint: z.string().url().optional(),
 });
 
