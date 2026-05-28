@@ -1,6 +1,6 @@
 # mcp-patchright
 
-🛡️ Undetectable browser MCP server — 36 tools, Patchright-powered, zero CDP fingerprint.
+🛡️ Undetectable browser MCP server — 41 tools, Patchright-powered, zero CDP fingerprint.
 
 [![npm]](https://npmjs.com/mcp-patchright) [![MCP]](https://modelcontextprotocol.io)
 
@@ -40,13 +40,16 @@ mcp-patchright --port 9321 --host 127.0.0.1
 
 ## Features
 
-- **36 MCP tools** — full browser automation surface
+- **41 MCP tools** — full browser automation surface
 - **3 transports** — stdio, SSE, Streamable HTTP (`/mcp`)
 - **Persistent profiles** — real Chrome profile, reuse across sessions
 - **Multi-page** — tab management (new, list, switch, close)
 - **CDP attach** — control an already-running Chrome
 - **Network tracking + interception** — request list/detail, offline toggle, block/mock routes
 - **Session import/export** — `browser_storage_save` / `browser_storage_load` (cookies + localStorage)
+- **Authenticated API requests** — `browser_api_request` reuses session cookies (hybrid scraping)
+- **Text/HTML extraction** — `browser_get_visible_text` / `_html` (token-light)
+- **Iframe actions** — `browser_iframe_click` / `_fill`
 - **PDF export** — `browser_save_pdf` via CDP (works in headed/stealth mode)
 - **Stealth profiles** — proxy / geolocation / locale / timezone / colorScheme
 - **Console capture** — real-time console message stream
@@ -85,6 +88,11 @@ Full comparison HTML in [/docs/tool-comparison.html](docs/tool-comparison.html).
 - `browser_fill_form`
 - `browser_run_code_unsafe`
 - `browser_network_state_set`
+- `browser_api_request`
+- `browser_get_visible_text`
+- `browser_get_visible_html`
+- `browser_iframe_click`
+- `browser_iframe_fill`
 - `browser_route_block`
 - `browser_route_mock`
 - `browser_route_clear`
@@ -148,9 +156,13 @@ Shipped:
 - ✅ network interception (block / mock)
 - ✅ session import/export (storageState)
 - ✅ PDF export
+- ✅ authenticated API requests (reuse browser cookies)
+- ✅ lightweight text/HTML extraction
+- ✅ iframe actions
 
 Next:
 
 - rebrowser-playwright backend
-- API request tools (reuse browser cookies)
-- lightweight text/HTML extraction
+- codegen sessions
+- coordinate-based (vision) clicks
+- tracing / video recording

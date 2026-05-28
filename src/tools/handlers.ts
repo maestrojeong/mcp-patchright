@@ -15,6 +15,11 @@ import {
   fillFormSchema,
   runCodeSchema,
   savePdfSchema,
+  apiRequestSchema,
+  visibleTextSchema,
+  visibleHtmlSchema,
+  iframeClickSchema,
+  iframeFillSchema,
   routeBlockSchema,
   routeMockSchema,
   storageSaveSchema,
@@ -33,6 +38,12 @@ import {
 } from "./schemas.js";
 
 type ToolResult = CallToolResult;
+
+function truncate(value: string, max?: number): { text: string; truncated: boolean; length: number } {
+  const limit = max ?? 100_000;
+  if (value.length <= limit) return { text: value, truncated: false, length: value.length };
+  return { text: value.slice(0, limit), truncated: true, length: value.length };
+}
 
 function text(value: unknown): ToolResult {
   return {
@@ -346,6 +357,64 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const page = await manager.getPage();
       await page.context().setOffline(parsed.offline);
       return text({ ok: true, offline: parsed.offline });
+    }
+    case "browser_api_request": {
+      const parsed = apiRequestSchema.parse(args);
+      const page = await manager.getPage();
+      // context.request shares cookies/storage with the browser session,
+      // so authenticated API calls work without re-login.
+      const res = await page.context().request.fetch(parsed.url, {
+        method: parsed.method ?? "GET",
+        ...(parsed.headers ? { headers: parsed.headers } : {}),
+        ...(parsed.data !== undefined ? { data: parsed.data } : {}),
+        timeout: parsed.timeout ?? 30_000,
+      });
+      const body = truncate(await res.text(), parsed.maxBytes);
+      return text({
+        ok: res.ok(),
+        status: res.status(),
+        statusText: res.statusText(),
+        url: res.url(),
+        headers: res.headers(),
+        body: body.text,
+        truncated: body.truncated,
+        length: body.length,
+      });
+    }
+    case "browser_get_visible_text": {
+      const parsed = visibleTextSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const raw = await page.evaluate(() => document.body?.innerText ?? "");
+      const out = truncate(raw, parsed.maxLength);
+      return text({ url: page.url(), text: out.text, truncated: out.truncated, length: out.length });
+    }
+    case "browser_get_visible_html": {
+      const parsed = visibleHtmlSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const raw = await page.evaluate(
+        (opts: { selector: string | null; removeScripts: boolean }) => {
+          const root = opts.selector ? document.querySelector(opts.selector) : document.documentElement;
+          if (!root) return "";
+          const clone = root.cloneNode(true) as Element;
+          if (opts.removeScripts) clone.querySelectorAll("script,style,noscript,template,svg").forEach((n) => n.remove());
+          return clone.outerHTML ?? "";
+        },
+        { selector: parsed.selector ?? null, removeScripts: parsed.removeScripts ?? true },
+      );
+      const out = truncate(raw, parsed.maxLength);
+      return text({ url: page.url(), html: out.text, truncated: out.truncated, length: out.length });
+    }
+    case "browser_iframe_click": {
+      const parsed = iframeClickSchema.parse(args);
+      const page = await manager.getPage();
+      await page.frameLocator(parsed.frameSelector).locator(parsed.selector).click({ timeout: parsed.timeout ?? 30_000 });
+      return text({ ok: true });
+    }
+    case "browser_iframe_fill": {
+      const parsed = iframeFillSchema.parse(args);
+      const page = await manager.getPage();
+      await page.frameLocator(parsed.frameSelector).locator(parsed.selector).fill(parsed.value, { timeout: parsed.timeout ?? 30_000 });
+      return text({ ok: true });
     }
     case "browser_route_block": {
       const parsed = routeBlockSchema.parse(args ?? {});

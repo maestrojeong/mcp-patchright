@@ -182,6 +182,35 @@ export const storageLoadSchema = z.object({
   message: "Provide path or state",
 });
 
+export const apiRequestSchema = z.object({
+  url: z.string().url(),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  data: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+  timeout: z.number().int().positive().optional(),
+  maxBytes: z.number().int().positive().optional(),
+});
+
+export const visibleTextSchema = z.object({
+  maxLength: z.number().int().positive().optional(),
+});
+
+export const visibleHtmlSchema = z.object({
+  selector: z.string().optional(),
+  removeScripts: z.boolean().optional(),
+  maxLength: z.number().int().positive().optional(),
+});
+
+export const iframeClickSchema = z.object({
+  frameSelector: z.string().min(1),
+  selector: z.string().min(1),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const iframeFillSchema = iframeClickSchema.extend({
+  value: z.string(),
+});
+
 export const savePdfSchema = z.object({
   path: z.string().optional(),
   landscape: z.boolean().optional(),

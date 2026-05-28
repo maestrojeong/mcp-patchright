@@ -338,6 +338,69 @@ export const tools: Tool[] = [
     },
   },
   {
+    name: "browser_api_request",
+    description: "Make an HTTP request reusing the browser session's cookies/storage (authenticated API calls without re-login). Returns status, headers, and body.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"] },
+        headers: { type: "object", description: "Request headers as key/value strings." },
+        data: { description: "Request body: a string, or an object (sent as JSON)." },
+        timeout: { type: "number" },
+        maxBytes: { type: "number", description: "Truncate response body to this many chars. Default 100000." },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "browser_get_visible_text",
+    description: "Get the visible text (document.body.innerText) of the active page. Lighter than a full aria snapshot.",
+    inputSchema: {
+      type: "object",
+      properties: { maxLength: { type: "number", description: "Truncate to this many chars. Default 100000." } },
+    },
+  },
+  {
+    name: "browser_get_visible_html",
+    description: "Get page HTML, optionally scoped to a selector. Strips script/style/svg by default for token efficiency.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string", description: "Limit to this element's outerHTML. Default whole document." },
+        removeScripts: { type: "boolean", description: "Remove script/style/noscript/svg. Default true." },
+        maxLength: { type: "number", description: "Truncate to this many chars. Default 100000." },
+      },
+    },
+  },
+  {
+    name: "browser_iframe_click",
+    description: "Click an element inside an iframe. frameSelector locates the iframe, selector locates the element within it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        frameSelector: { type: "string", description: "CSS selector for the iframe element." },
+        selector: { type: "string", description: "CSS selector for the target element inside the iframe." },
+        timeout: { type: "number" },
+      },
+      required: ["frameSelector", "selector"],
+    },
+  },
+  {
+    name: "browser_iframe_fill",
+    description: "Fill an input inside an iframe. frameSelector locates the iframe, selector locates the input within it.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        frameSelector: { type: "string", description: "CSS selector for the iframe element." },
+        selector: { type: "string", description: "CSS selector for the input inside the iframe." },
+        value: { type: "string" },
+        timeout: { type: "number" },
+      },
+      required: ["frameSelector", "selector", "value"],
+    },
+  },
+  {
     name: "browser_route_block",
     description: "Block requests by resource type and/or URL pattern (e.g. block images/fonts/media to speed up loads and shrink fingerprint surface). Applies to all pages in the context.",
     inputSchema: {
