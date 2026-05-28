@@ -15,6 +15,8 @@ import {
   fillFormSchema,
   runCodeSchema,
   savePdfSchema,
+  routeBlockSchema,
+  routeMockSchema,
   storageSaveSchema,
   storageLoadSchema,
   evaluateSchema,
@@ -344,6 +346,18 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const page = await manager.getPage();
       await page.context().setOffline(parsed.offline);
       return text({ ok: true, offline: parsed.offline });
+    }
+    case "browser_route_block": {
+      const parsed = routeBlockSchema.parse(args ?? {});
+      return text({ ok: true, routes: await manager.addBlockRoute(parsed) });
+    }
+    case "browser_route_mock": {
+      const parsed = routeMockSchema.parse(args);
+      return text({ ok: true, routes: await manager.addMockRoute(parsed) });
+    }
+    case "browser_route_clear": {
+      const cleared = await manager.clearRoutes();
+      return text({ ok: true, cleared });
     }
     case "browser_storage_save": {
       const parsed = storageSaveSchema.parse(args ?? {});

@@ -136,6 +136,23 @@ export const runCodeSchema = z.object({
   args: z.array(z.unknown()).optional(),
 });
 
+const resourceTypeEnum = z.enum([
+  "document", "stylesheet", "image", "media", "font", "script",
+  "texttrack", "xhr", "fetch", "eventsource", "websocket", "manifest", "other",
+]);
+
+export const routeBlockSchema = z.object({
+  urlPattern: z.string().optional(),
+  resourceTypes: z.array(resourceTypeEnum).optional(),
+});
+
+export const routeMockSchema = z.object({
+  urlPattern: z.string().min(1),
+  status: z.number().int().optional(),
+  body: z.string().optional(),
+  contentType: z.string().optional(),
+});
+
 export const storageSaveSchema = z.object({
   path: z.string().optional(),
 });

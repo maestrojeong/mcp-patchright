@@ -316,6 +316,40 @@ export const tools: Tool[] = [
     },
   },
   {
+    name: "browser_route_block",
+    description: "Block requests by resource type and/or URL pattern (e.g. block images/fonts/media to speed up loads and shrink fingerprint surface). Applies to all pages in the context.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        urlPattern: { type: "string", description: "Glob/URL pattern to match. Default **/* (all)." },
+        resourceTypes: {
+          type: "array",
+          items: { type: "string", enum: ["document", "stylesheet", "image", "media", "font", "script", "texttrack", "xhr", "fetch", "eventsource", "websocket", "manifest", "other"] },
+          description: "Resource types to abort. If omitted, blocks every request matching urlPattern.",
+        },
+      },
+    },
+  },
+  {
+    name: "browser_route_mock",
+    description: "Mock matching requests with a canned response (fulfill). Useful for stubbing APIs or bypassing endpoints.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        urlPattern: { type: "string", description: "Glob/URL pattern to match." },
+        status: { type: "number", description: "HTTP status, default 200." },
+        body: { type: "string", description: "Response body." },
+        contentType: { type: "string", description: "Content-Type, default text/plain." },
+      },
+      required: ["urlPattern"],
+    },
+  },
+  {
+    name: "browser_route_clear",
+    description: "Remove all active block/mock routes.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
     name: "browser_storage_save",
     description: "Export current session (cookies + localStorage) as a Playwright storageState. Saves to path, or returns the state JSON if path omitted.",
     inputSchema: {
