@@ -76,6 +76,7 @@ export class BrowserManager {
   private context?: BrowserContext;
   private activePage?: Page;
   private pageIds = new WeakMap<Page, string>();
+  private trackedPages = new WeakSet<Page>();
   private nextPageId = 1;
   private engine: BrowserEngine = "patchright";
   private options?: Required<Pick<StartOptions, "browser" | "headless" | "userDataDir">> & StartOptions;
@@ -128,8 +129,9 @@ export class BrowserManager {
     await mkdir(userDataDir, { recursive: true });
     await this.removeSingletonFiles(userDataDir);
 
-    this.context = await chromium.launchPersistentContext(userDataDir, {
-      channel: startOptions.channel ?? (browserName as any),
+    const launcher = browserName === "firefox" ? firefox : browserName === "webkit" ? webkit : chromium;
+    this.context = await launcher.launchPersistentContext(userDataDir, {
+      ...(browserName === "chromium" ? { channel: startOptions.channel ?? "chrome" } : {}),
       headless,
       viewport: headless ? { width, height } : null,
       ...(startOptions.userAgent ? { userAgent: startOptions.userAgent } : {}),
@@ -214,6 +216,8 @@ export class BrowserManager {
   }
 
   trackPage(page: Page): void {
+    if (this.trackedPages.has(page)) return;
+    this.trackedPages.add(page);
     page.on("request", (req) => {
       this._networkRequests.push({
         id: String(this._networkRequests.length + 1),
@@ -259,6 +263,10 @@ export class BrowserManager {
     return this._networkRequests[index];
   }
 
+  getNetworkRequestById(id: string): NetworkRequest | undefined {
+    return this._networkRequests.find((request) => request.id === id);
+  }
+
   async close(): Promise<void> {
     await this.context?.close().catch(() => undefined);
     await this.browser?.close().catch(() => undefined);
@@ -268,6 +276,7 @@ export class BrowserManager {
     this.startPromise = undefined;
     this.engine = "patchright";
     this.pageIds = new WeakMap<Page, string>();
+    this.trackedPages = new WeakSet<Page>();
     this.nextPageId = 1;
   }
 

@@ -1,6 +1,6 @@
 {
   "name": "mcp-patchright",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Stealth browser automation MCP server powered by Patchright. 30 tools, HTTP/SSE/Streamable HTTP transports, persistent profiles, multi-page support, CDP attach.",
   "type": "module",
   "main": "dist/index.js",

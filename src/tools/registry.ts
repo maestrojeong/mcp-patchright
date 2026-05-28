@@ -201,6 +201,8 @@ export const tools: Tool[] = [
       properties: {
         accept: { type: "boolean", description: "true = accept, false = dismiss" },
         promptText: { type: "string", description: "Text to enter for prompt dialogs" },
+        wait: { type: "boolean", description: "When true, wait for and handle the next dialog before returning. Default false arms a one-shot handler for the next action." },
+        timeout: { type: "number", description: "Milliseconds to wait when wait=true" },
       },
       required: ["accept"],
     },
@@ -227,14 +229,14 @@ export const tools: Tool[] = [
   },
   {
     name: "browser_network_request",
-    description: "Get details for a single network request by index from the browser_network_requests list.",
+    description: "Get details for a single network request by stable id from browser_network_requests. Legacy zero-based index is also accepted.",
     inputSchema: {
       type: "object",
       properties: {
-        index: { type: "number" },
+        id: { type: "string" },
+        index: { type: "number", description: "Legacy zero-based index into the retained request list" },
         details: { type: "boolean", description: "Include response body preview when true" },
       },
-      required: ["index"],
     },
   },
   {

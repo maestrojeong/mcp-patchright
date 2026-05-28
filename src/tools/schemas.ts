@@ -86,6 +86,8 @@ export const selectOptionSchema = targetSchema.extend({
 export const dialogSchema = z.object({
   accept: z.boolean(),
   promptText: z.string().optional(),
+  wait: z.boolean().optional(),
+  timeout: z.number().int().positive().optional(),
 });
 
 export const fileUploadSchema = targetSchema.extend({
@@ -97,8 +99,11 @@ export const networkRequestsSchema = z.object({
 });
 
 export const networkRequestSchema = z.object({
-  index: z.number().int().nonnegative(),
+  id: z.string().min(1).optional(),
+  index: z.number().int().nonnegative().optional(),
   details: z.boolean().optional(),
+}).refine((value) => !!value.id !== (value.index !== undefined), {
+  message: "Provide exactly one of id or index",
 });
 
 export const networkStateSchema = z.object({
