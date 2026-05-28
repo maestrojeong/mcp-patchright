@@ -49,7 +49,7 @@ mcp-patchright --port 9321 --host 127.0.0.1
 - **Session import/export** — `browser_storage_save` / `browser_storage_load` (cookies + localStorage)
 - **Authenticated API requests** — `browser_api_request` reuses session cookies (hybrid scraping)
 - **Text/HTML extraction** — `browser_get_visible_text` / `_html` (token-light)
-- **Iframe actions** — `browser_iframe_click` / `_fill`
+- **Iframe-aware** — pass `frameSelector` to any element tool (click/fill/type/hover/press/wait_for/select/drag) to act inside an iframe
 - **PDF export** — `browser_save_pdf` via CDP (works in headed/stealth mode)
 - **Stealth profiles** — proxy / geolocation / locale / timezone / colorScheme
 - **Console capture** — real-time console message stream

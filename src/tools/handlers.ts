@@ -72,9 +72,10 @@ const PDF_PAPER: Record<string, { width: number; height: number }> = {
   A5: { width: 5.83, height: 8.27 },
 };
 
-function locatorFor(page: Page, target: { selector?: string; ref?: string }): Locator {
-  if (target.ref) return page.locator(`aria-ref=${target.ref}`);
-  if (target.selector) return page.locator(target.selector);
+function locatorFor(page: Page, target: { selector?: string; ref?: string; frameSelector?: string }): Locator {
+  const root = target.frameSelector ? page.frameLocator(target.frameSelector) : page;
+  if (target.ref) return root.locator(`aria-ref=${target.ref}`);
+  if (target.selector) return root.locator(target.selector);
   throw new Error("Missing selector or ref");
 }
 
@@ -333,9 +334,8 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const results: { name?: string; ok: boolean; error?: string }[] = [];
       for (const field of parsed.fields) {
         try {
-          const loc = field.selector ? page.locator(field.selector) : field.ref ? page.locator(`aria-ref=${field.ref}`) : null;
-          if (!loc) { results.push({ name: field.name, ok: false, error: "Missing selector or ref" }); continue; }
-          await loc.fill(field.value, { timeout: parsed.timeout ?? 30_000 });
+          if (!field.selector && !field.ref) { results.push({ name: field.name, ok: false, error: "Missing selector or ref" }); continue; }
+          await locatorFor(page, field).fill(field.value, { timeout: parsed.timeout ?? 30_000 });
           results.push({ name: field.name, ok: true });
         } catch (e: any) {
           results.push({ name: field.name, ok: false, error: e?.message ?? String(e) });

@@ -3,6 +3,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 const targetProperties = {
   selector: { type: "string", description: "CSS selector. Provide exactly one of selector or ref." },
   ref: { type: "string", description: "aria-ref from browser_snapshot, for example e12. Provide exactly one of selector or ref." },
+  frameSelector: { type: "string", description: "Optional CSS selector for an iframe. When set, selector/ref resolve inside that frame." },
   timeout: { type: "number" },
 } as const;
 
@@ -163,6 +164,7 @@ export const tools: Tool[] = [
         key: { type: "string" },
         selector: { type: "string" },
         ref: { type: "string" },
+        frameSelector: { type: "string", description: "Optional iframe CSS selector; selector/ref resolve inside it." },
         timeout: { type: "number" },
       },
       required: ["key"],
@@ -176,6 +178,7 @@ export const tools: Tool[] = [
       properties: {
         selector: { type: "string" },
         ref: { type: "string" },
+        frameSelector: { type: "string", description: "Optional iframe CSS selector; selector/ref resolve inside it." },
         state: { type: "string", enum: ["attached", "detached", "visible", "hidden"] },
         timeout: { type: "number" },
       },
@@ -284,10 +287,8 @@ export const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        source_selector: { type: "string" },
-        source_ref: { type: "string" },
-        target_selector: { type: "string" },
-        target_ref: { type: "string" },
+        source: { type: "object", description: "{ selector|ref, frameSelector? }" },
+        target: { type: "object", description: "{ selector|ref, frameSelector? }" },
         timeout: { type: "number" },
       },
     },
@@ -305,6 +306,7 @@ export const tools: Tool[] = [
             properties: {
               selector: { type: "string" },
               ref: { type: "string" },
+              frameSelector: { type: "string", description: "Optional iframe CSS selector for this field." },
               name: { type: "string" },
               value: { type: "string" },
             },
@@ -375,7 +377,7 @@ export const tools: Tool[] = [
   },
   {
     name: "browser_iframe_click",
-    description: "Click an element inside an iframe. frameSelector locates the iframe, selector locates the element within it.",
+    description: "Shorthand for clicking inside an iframe. (Most tools now accept a frameSelector directly — prefer browser_click with frameSelector.)",
     inputSchema: {
       type: "object",
       properties: {
@@ -388,7 +390,7 @@ export const tools: Tool[] = [
   },
   {
     name: "browser_iframe_fill",
-    description: "Fill an input inside an iframe. frameSelector locates the iframe, selector locates the input within it.",
+    description: "Shorthand for filling inside an iframe. (Most tools now accept a frameSelector directly — prefer browser_fill with frameSelector.)",
     inputSchema: {
       type: "object",
       properties: {

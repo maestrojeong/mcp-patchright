@@ -52,6 +52,7 @@ export const targetSchema = z
   .object({
     selector: z.string().min(1).optional(),
     ref: z.string().min(1).optional(),
+    frameSelector: z.string().min(1).optional(),
     timeout: z.number().int().positive().optional(),
   })
   .refine((value) => !!value.selector !== !!value.ref, {
@@ -71,12 +72,14 @@ export const pressSchema = z.object({
   key: z.string().min(1),
   selector: z.string().optional(),
   ref: z.string().optional(),
+  frameSelector: z.string().optional(),
   timeout: z.number().int().positive().optional(),
 });
 
 export const waitForSchema = z.object({
   selector: z.string().min(1).optional(),
   ref: z.string().min(1).optional(),
+  frameSelector: z.string().min(1).optional(),
   state: z.enum(["attached", "detached", "visible", "hidden"]).optional(),
   timeout: z.number().int().positive().optional(),
 }).refine((value) => !(value.selector && value.ref), {
@@ -128,8 +131,8 @@ export const resizeSchema = z.object({
 });
 
 export const dragDropSchema = z.object({
-  source: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
-  target: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  source: z.object({ selector: z.string().optional(), ref: z.string().optional(), frameSelector: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  target: z.object({ selector: z.string().optional(), ref: z.string().optional(), frameSelector: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
   timeout: z.number().int().positive().optional(),
 });
 
@@ -137,6 +140,7 @@ export const fillFormSchema = z.object({
   fields: z.array(z.object({
     selector: z.string().optional(),
     ref: z.string().optional(),
+    frameSelector: z.string().optional(),
     name: z.string().optional(),
     value: z.string(),
   })).min(1),
