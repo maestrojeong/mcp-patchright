@@ -1,5 +1,5 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
-import type { Locator, Page } from "patchright";
+import type { Dialog, Locator, Page } from "patchright";
 import type { BrowserManager } from "../browser/manager.js";
 import {
   closePageSchema,
@@ -235,11 +235,27 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
     case "browser_handle_dialog": {
       const parsed = dialogSchema.parse(args);
       const page = await manager.getPage();
+      const handle = async (dialog: Dialog) => {
+        const result = {
+          type: dialog.type(),
+          message: dialog.message(),
+          defaultValue: dialog.defaultValue(),
+          accepted: parsed.accept,
+        };
+        if (parsed.accept) await dialog.accept(parsed.promptText);
+        else await dialog.dismiss();
+        return result;
+      };
+
+      if (parsed.wait) {
+        const dialog = await page.waitForEvent("dialog", { timeout: parsed.timeout ?? 30_000 });
+        return text({ ok: true, dialog: await handle(dialog) });
+      }
+
       page.once("dialog", (dialog) => {
-        if (parsed.accept) parsed.promptText ? dialog.accept(parsed.promptText) : dialog.accept();
-        else dialog.dismiss();
+        handle(dialog).catch(() => undefined);
       });
-      return text({ ok: true });
+      return text({ ok: true, armed: true });
     }
     case "browser_file_upload": {
       const parsed = fileUploadSchema.parse(args);
@@ -253,8 +269,18 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
     }
     case "browser_network_request": {
       const parsed = networkRequestSchema.parse(args);
-      const req = manager.getNetworkRequestByIndex(parsed.index);
-      if (!req) return text({ ok: false, error: `No request at index ${parsed.index}` });
+      const req =
+        parsed.id !== undefined
+          ? manager.getNetworkRequestById(parsed.id)
+          : parsed.index !== undefined
+            ? manager.getNetworkRequestByIndex(parsed.index)
+            : undefined;
+      if (!req) {
+        return text({
+          ok: false,
+          error: parsed.id !== undefined ? `No request with id ${parsed.id}` : `No request at index ${parsed.index}`,
+        });
+      }
       return text(req);
     }
     case "browser_console_messages": {
