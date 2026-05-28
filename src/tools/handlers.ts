@@ -1,4 +1,4 @@
-import { writeFile } from "node:fs/promises";
+import { readFile, writeFile } from "node:fs/promises";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Dialog, Locator, Page } from "patchright";
 import type { BrowserManager } from "../browser/manager.js";
@@ -15,6 +15,8 @@ import {
   fillFormSchema,
   runCodeSchema,
   savePdfSchema,
+  storageSaveSchema,
+  storageLoadSchema,
   evaluateSchema,
   fillSchema,
   navigateSchema,
@@ -342,6 +344,34 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const page = await manager.getPage();
       await page.context().setOffline(parsed.offline);
       return text({ ok: true, offline: parsed.offline });
+    }
+    case "browser_storage_save": {
+      const parsed = storageSaveSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const state = await page.context().storageState(parsed.path ? { path: parsed.path } : {});
+      if (parsed.path) {
+        return text({ ok: true, path: parsed.path, cookies: state.cookies.length, origins: state.origins.length });
+      }
+      return text(state);
+    }
+    case "browser_storage_load": {
+      const parsed = storageLoadSchema.parse(args);
+      const page = await manager.getPage();
+      const ctx = page.context();
+      const state = parsed.state ?? JSON.parse(await readFile(parsed.path!, "utf8"));
+      if (state.cookies?.length) await ctx.addCookies(state.cookies);
+      // Persistent contexts can't ingest storageState at launch, so restore
+      // localStorage by visiting each origin and writing entries directly.
+      let originsApplied = 0;
+      for (const origin of state.origins ?? []) {
+        if (!origin.localStorage?.length) continue;
+        await page.goto(origin.origin, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        await page.evaluate((items: { name: string; value: string }[]) => {
+          for (const item of items) localStorage.setItem(item.name, item.value);
+        }, origin.localStorage);
+        originsApplied++;
+      }
+      return text({ ok: true, cookies: state.cookies?.length ?? 0, origins: originsApplied });
     }
     case "browser_save_pdf": {
       const parsed = savePdfSchema.parse(args ?? {});

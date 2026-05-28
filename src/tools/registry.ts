@@ -316,6 +316,27 @@ export const tools: Tool[] = [
     },
   },
   {
+    name: "browser_storage_save",
+    description: "Export current session (cookies + localStorage) as a Playwright storageState. Saves to path, or returns the state JSON if path omitted.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Output JSON file path. If omitted, returns the state inline." },
+      },
+    },
+  },
+  {
+    name: "browser_storage_load",
+    description: "Restore a session from a storageState (cookies + localStorage). Provide a file path or an inline state object. Note: localStorage restore navigates to each origin.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to a storageState JSON file." },
+        state: { type: "object", description: "Inline storageState object ({ cookies, origins })." },
+      },
+    },
+  },
+  {
     name: "browser_save_pdf",
     description: "Render the active page to PDF via CDP (works in headed/stealth mode). Saves to path, or returns base64 if path omitted.",
     inputSchema: {

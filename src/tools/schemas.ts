@@ -136,6 +136,23 @@ export const runCodeSchema = z.object({
   args: z.array(z.unknown()).optional(),
 });
 
+export const storageSaveSchema = z.object({
+  path: z.string().optional(),
+});
+
+export const storageLoadSchema = z.object({
+  path: z.string().optional(),
+  state: z.object({
+    cookies: z.array(z.record(z.string(), z.unknown())).optional(),
+    origins: z.array(z.object({
+      origin: z.string(),
+      localStorage: z.array(z.object({ name: z.string(), value: z.string() })),
+    })).optional(),
+  }).optional(),
+}).refine((v) => !!v.path || !!v.state, {
+  message: "Provide path or state",
+});
+
 export const savePdfSchema = z.object({
   path: z.string().optional(),
   landscape: z.boolean().optional(),
