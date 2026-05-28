@@ -135,3 +135,11 @@ export const runCodeSchema = z.object({
   script: z.string().min(1),
   args: z.array(z.unknown()).optional(),
 });
+
+export const savePdfSchema = z.object({
+  path: z.string().optional(),
+  landscape: z.boolean().optional(),
+  printBackground: z.boolean().optional(),
+  scale: z.number().positive().optional(),
+  format: z.enum(["Letter", "Legal", "Tabloid", "A3", "A4", "A5"]).optional(),
+});

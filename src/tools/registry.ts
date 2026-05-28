@@ -316,6 +316,20 @@ export const tools: Tool[] = [
     },
   },
   {
+    name: "browser_save_pdf",
+    description: "Render the active page to PDF via CDP (works in headed/stealth mode). Saves to path, or returns base64 if path omitted.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Output file path. If omitted, returns base64." },
+        landscape: { type: "boolean" },
+        printBackground: { type: "boolean", description: "Include background graphics. Default true." },
+        scale: { type: "number", description: "Render scale, default 1." },
+        format: { type: "string", enum: ["Letter", "Legal", "Tabloid", "A3", "A4", "A5"] },
+      },
+    },
+  },
+  {
     name: "browser_close",
     description: "Close the browser session.",
     inputSchema: { type: "object", properties: {} },

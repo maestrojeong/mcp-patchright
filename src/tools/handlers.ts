@@ -1,3 +1,4 @@
+import { writeFile } from "node:fs/promises";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Dialog, Locator, Page } from "patchright";
 import type { BrowserManager } from "../browser/manager.js";
@@ -13,6 +14,7 @@ import {
   dragDropSchema,
   fillFormSchema,
   runCodeSchema,
+  savePdfSchema,
   evaluateSchema,
   fillSchema,
   navigateSchema,
@@ -44,6 +46,16 @@ function image(data: Buffer): ToolResult {
     content: [{ type: "image", data: data.toString("base64"), mimeType: "image/png" }],
   };
 }
+
+// CDP Page.printToPDF takes paper dimensions in inches.
+const PDF_PAPER: Record<string, { width: number; height: number }> = {
+  Letter: { width: 8.5, height: 11 },
+  Legal: { width: 8.5, height: 14 },
+  Tabloid: { width: 11, height: 17 },
+  A3: { width: 11.69, height: 16.54 },
+  A4: { width: 8.27, height: 11.69 },
+  A5: { width: 5.83, height: 8.27 },
+};
 
 function locatorFor(page: Page, target: { selector?: string; ref?: string }): Locator {
   if (target.ref) return page.locator(`aria-ref=${target.ref}`);
@@ -330,6 +342,30 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const page = await manager.getPage();
       await page.context().setOffline(parsed.offline);
       return text({ ok: true, offline: parsed.offline });
+    }
+    case "browser_save_pdf": {
+      const parsed = savePdfSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      // page.pdf() only works in headless Chromium, so drive CDP Page.printToPDF
+      // directly — this works in headed/stealth mode too.
+      const client = await page.context().newCDPSession(page);
+      const paper = parsed.format ? PDF_PAPER[parsed.format] : undefined;
+      try {
+        const { data } = await client.send("Page.printToPDF", {
+          landscape: parsed.landscape ?? false,
+          printBackground: parsed.printBackground ?? true,
+          scale: parsed.scale ?? 1,
+          ...(paper ? { paperWidth: paper.width, paperHeight: paper.height } : {}),
+        });
+        const buf = Buffer.from(data, "base64");
+        if (parsed.path) {
+          await writeFile(parsed.path, buf);
+          return text({ ok: true, path: parsed.path, bytes: buf.length });
+        }
+        return text({ ok: true, bytes: buf.length, pdfBase64: data });
+      } finally {
+        await client.detach().catch(() => undefined);
+      }
     }
     case "browser_close": {
       await manager.close();
