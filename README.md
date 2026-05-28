@@ -1,6 +1,6 @@
 # mcp-patchright
 
-🛡️ Undetectable browser MCP server — 30 tools, Patchright-powered, zero CDP fingerprint.
+🛡️ Undetectable browser MCP server — 36 tools, Patchright-powered, zero CDP fingerprint.
 
 [![npm]](https://npmjs.com/mcp-patchright) [![MCP]](https://modelcontextprotocol.io)
 
@@ -40,12 +40,15 @@ mcp-patchright --port 9321 --host 127.0.0.1
 
 ## Features
 
-- **30 MCP tools** — full browser automation surface
+- **36 MCP tools** — full browser automation surface
 - **3 transports** — stdio, SSE, Streamable HTTP (`/mcp`)
 - **Persistent profiles** — real Chrome profile, reuse across sessions
 - **Multi-page** — tab management (new, list, switch, close)
 - **CDP attach** — control an already-running Chrome
-- **Network tracking** — request list, detail, offline toggle
+- **Network tracking + interception** — request list/detail, offline toggle, block/mock routes
+- **Session import/export** — `browser_storage_save` / `browser_storage_load` (cookies + localStorage)
+- **PDF export** — `browser_save_pdf` via CDP (works in headed/stealth mode)
+- **Stealth profiles** — proxy / geolocation / locale / timezone / colorScheme
 - **Console capture** — real-time console message stream
 - **Fingerprint check** — `browser_fingerprint_check` diagnostics
 
@@ -82,6 +85,12 @@ Full comparison HTML in [/docs/tool-comparison.html](docs/tool-comparison.html).
 - `browser_fill_form`
 - `browser_run_code_unsafe`
 - `browser_network_state_set`
+- `browser_route_block`
+- `browser_route_mock`
+- `browser_route_clear`
+- `browser_storage_save`
+- `browser_storage_load`
+- `browser_save_pdf`
 - `browser_close`
 
 ## Development
@@ -129,11 +138,19 @@ MCP config example:
 
 ## Direction
 
-This starts with Playwright-compatible basics, then adds stealth-first features:
+Shipped:
 
-- persistent user data dirs
-- CDP attach to real Chrome
+- ✅ persistent user data dirs
+- ✅ CDP attach to real Chrome
+- ✅ proxy / timezone / locale / geolocation profiles
+- ✅ accessibility snapshots for LLM-friendly page control
+- ✅ fingerprint diagnostics
+- ✅ network interception (block / mock)
+- ✅ session import/export (storageState)
+- ✅ PDF export
+
+Next:
+
 - rebrowser-playwright backend
-- proxy / timezone / locale / geolocation profiles
-- accessibility snapshots for LLM-friendly page control
-- fingerprint diagnostics
+- API request tools (reuse browser cookies)
+- lightweight text/HTML extraction
