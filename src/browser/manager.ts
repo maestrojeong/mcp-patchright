@@ -8,6 +8,7 @@ import {
   type Browser,
   type BrowserContext,
   type Page,
+  type Route,
 } from "patchright";
 
 export type BrowserName = "chromium" | "firefox" | "webkit";
@@ -23,7 +24,18 @@ export interface StartOptions {
   channel?: "chrome" | "chrome-beta" | "chrome-dev" | "chrome-canary" | "msedge";
   locale?: string;
   timezoneId?: string;
+  proxy?: { server: string; username?: string; password?: string; bypass?: string };
+  geolocation?: { latitude: number; longitude: number; accuracy?: number };
+  colorScheme?: "light" | "dark" | "no-preference";
   cdpEndpoint?: string;
+}
+
+export interface RouteRule {
+  id: string;
+  kind: "block" | "mock";
+  urlPattern: string;
+  resourceTypes?: string[];
+  status?: number;
 }
 
 export interface PageInfo {
@@ -83,6 +95,7 @@ export class BrowserManager {
   private startPromise?: Promise<Page>;
   private _networkRequests: NetworkRequest[] = [];
   private _consoleMessages: ConsoleMessage[] = [];
+  private _routeRules: (RouteRule & { handler: (route: Route) => unknown })[] = [];
 
   async start(options: StartOptions = {}): Promise<Page> {
     if (this.context && this.activePage && !this.activePage.isClosed()) return this.activePage;
@@ -112,6 +125,8 @@ export class BrowserManager {
         ...(startOptions.userAgent ? { userAgent: startOptions.userAgent } : {}),
         ...(startOptions.locale ? { locale: startOptions.locale } : {}),
         ...(startOptions.timezoneId ? { timezoneId: startOptions.timezoneId } : {}),
+        ...(startOptions.geolocation ? { geolocation: startOptions.geolocation, permissions: ["geolocation"] } : {}),
+        ...(startOptions.colorScheme ? { colorScheme: startOptions.colorScheme } : {}),
       }));
       this.engine = "cdp";
       this.options = { ...startOptions, browser: browserName, headless, userDataDir };
@@ -137,6 +152,9 @@ export class BrowserManager {
       ...(startOptions.userAgent ? { userAgent: startOptions.userAgent } : {}),
       ...(startOptions.locale ? { locale: startOptions.locale } : {}),
       ...(startOptions.timezoneId ? { timezoneId: startOptions.timezoneId } : {}),
+      ...(startOptions.proxy ? { proxy: startOptions.proxy } : {}),
+      ...(startOptions.geolocation ? { geolocation: startOptions.geolocation, permissions: ["geolocation"] } : {}),
+      ...(startOptions.colorScheme ? { colorScheme: startOptions.colorScheme } : {}),
     });
     this.engine = "patchright";
     this.options = { ...startOptions, browser: browserName, headless, userDataDir };
@@ -248,6 +266,49 @@ export class BrowserManager {
     });
   }
 
+  async addBlockRoute(opts: { urlPattern?: string; resourceTypes?: string[] }): Promise<RouteRule[]> {
+    await this.getPage();
+    if (!this.context) throw new Error("Browser context not available");
+    const urlPattern = opts.urlPattern ?? "**/*";
+    const types = opts.resourceTypes?.length ? new Set(opts.resourceTypes) : null;
+    const id = `route${this._routeRules.length + 1}`;
+    const handler = (route: Route) =>
+      !types || types.has(route.request().resourceType()) ? route.abort() : route.continue();
+    await this.context.route(urlPattern, handler);
+    this._routeRules.push({ id, kind: "block", urlPattern, resourceTypes: opts.resourceTypes, handler });
+    return this.listRoutes();
+  }
+
+  async addMockRoute(opts: { urlPattern: string; status?: number; body?: string; contentType?: string }): Promise<RouteRule[]> {
+    await this.getPage();
+    if (!this.context) throw new Error("Browser context not available");
+    const id = `route${this._routeRules.length + 1}`;
+    const handler = (route: Route) =>
+      route.fulfill({
+        status: opts.status ?? 200,
+        body: opts.body ?? "",
+        contentType: opts.contentType ?? "text/plain",
+      });
+    await this.context.route(opts.urlPattern, handler);
+    this._routeRules.push({ id, kind: "mock", urlPattern: opts.urlPattern, status: opts.status ?? 200, handler });
+    return this.listRoutes();
+  }
+
+  async clearRoutes(): Promise<number> {
+    const count = this._routeRules.length;
+    if (this.context) {
+      for (const rule of this._routeRules) {
+        await this.context.unroute(rule.urlPattern, rule.handler).catch(() => undefined);
+      }
+    }
+    this._routeRules = [];
+    return count;
+  }
+
+  listRoutes(): RouteRule[] {
+    return this._routeRules.map(({ handler, ...rule }) => rule);
+  }
+
   getNetworkRequests(activeOnly?: boolean): NetworkRequest[] {
     this._networkRequests = this._networkRequests.slice(-500);
     if (activeOnly) return this._networkRequests.filter((e) => !e.status);
@@ -278,6 +339,7 @@ export class BrowserManager {
     this.pageIds = new WeakMap<Page, string>();
     this.trackedPages = new WeakSet<Page>();
     this.nextPageId = 1;
+    this._routeRules = [];
   }
 
   private async removeSingletonFiles(userDataDir: string): Promise<void> {

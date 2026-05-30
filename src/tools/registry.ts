@@ -3,6 +3,7 @@ import type { Tool } from "@modelcontextprotocol/sdk/types.js";
 const targetProperties = {
   selector: { type: "string", description: "CSS selector. Provide exactly one of selector or ref." },
   ref: { type: "string", description: "aria-ref from browser_snapshot, for example e12. Provide exactly one of selector or ref." },
+  frameSelector: { type: "string", description: "Optional CSS selector for an iframe. When set, selector/ref resolve inside that frame." },
   timeout: { type: "number" },
 } as const;
 
@@ -22,6 +23,28 @@ export const tools: Tool[] = [
         channel: { type: "string", enum: ["chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"] },
         locale: { type: "string" },
         timezoneId: { type: "string" },
+        proxy: {
+          type: "object",
+          description: "Proxy for this session (persistent launch only). Keep IP country consistent with locale/timezone/geo to avoid bot detection.",
+          properties: {
+            server: { type: "string", description: "e.g. http://host:port or socks5://host:port" },
+            username: { type: "string" },
+            password: { type: "string" },
+            bypass: { type: "string", description: "Comma-separated hosts to bypass" },
+          },
+          required: ["server"],
+        },
+        geolocation: {
+          type: "object",
+          description: "Spoof geolocation. Grants the geolocation permission automatically.",
+          properties: {
+            latitude: { type: "number" },
+            longitude: { type: "number" },
+            accuracy: { type: "number" },
+          },
+          required: ["latitude", "longitude"],
+        },
+        colorScheme: { type: "string", enum: ["light", "dark", "no-preference"] },
         cdpEndpoint: { type: "string", description: "Existing Chrome remote debugging endpoint, e.g. http://127.0.0.1:9222" },
       },
     },
@@ -141,6 +164,7 @@ export const tools: Tool[] = [
         key: { type: "string" },
         selector: { type: "string" },
         ref: { type: "string" },
+        frameSelector: { type: "string", description: "Optional iframe CSS selector; selector/ref resolve inside it." },
         timeout: { type: "number" },
       },
       required: ["key"],
@@ -154,6 +178,7 @@ export const tools: Tool[] = [
       properties: {
         selector: { type: "string" },
         ref: { type: "string" },
+        frameSelector: { type: "string", description: "Optional iframe CSS selector; selector/ref resolve inside it." },
         state: { type: "string", enum: ["attached", "detached", "visible", "hidden"] },
         timeout: { type: "number" },
       },
@@ -262,10 +287,8 @@ export const tools: Tool[] = [
     inputSchema: {
       type: "object",
       properties: {
-        source_selector: { type: "string" },
-        source_ref: { type: "string" },
-        target_selector: { type: "string" },
-        target_ref: { type: "string" },
+        source: { type: "object", description: "{ selector|ref, frameSelector? }" },
+        target: { type: "object", description: "{ selector|ref, frameSelector? }" },
         timeout: { type: "number" },
       },
     },
@@ -283,6 +306,7 @@ export const tools: Tool[] = [
             properties: {
               selector: { type: "string" },
               ref: { type: "string" },
+              frameSelector: { type: "string", description: "Optional iframe CSS selector for this field." },
               name: { type: "string" },
               value: { type: "string" },
             },
@@ -313,6 +337,138 @@ export const tools: Tool[] = [
       type: "object",
       properties: { offline: { type: "boolean" } },
       required: ["offline"],
+    },
+  },
+  {
+    name: "browser_api_request",
+    description: "Make an HTTP request reusing the browser session's cookies/storage (authenticated API calls without re-login). Returns status, headers, and body.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        url: { type: "string" },
+        method: { type: "string", enum: ["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"] },
+        headers: { type: "object", description: "Request headers as key/value strings." },
+        data: { description: "Request body: a string, or an object (sent as JSON)." },
+        timeout: { type: "number" },
+        maxBytes: { type: "number", description: "Truncate response body to this many chars. Default 100000." },
+      },
+      required: ["url"],
+    },
+  },
+  {
+    name: "browser_get_visible_text",
+    description: "Get the visible text (document.body.innerText) of the active page. Lighter than a full aria snapshot.",
+    inputSchema: {
+      type: "object",
+      properties: { maxLength: { type: "number", description: "Truncate to this many chars. Default 100000." } },
+    },
+  },
+  {
+    name: "browser_get_visible_html",
+    description: "Get page HTML, optionally scoped to a selector. Strips script/style/svg by default for token efficiency.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        selector: { type: "string", description: "Limit to this element's outerHTML. Default whole document." },
+        removeScripts: { type: "boolean", description: "Remove script/style/noscript/svg. Default true." },
+        maxLength: { type: "number", description: "Truncate to this many chars. Default 100000." },
+      },
+    },
+  },
+  {
+    name: "browser_iframe_click",
+    description: "Shorthand for clicking inside an iframe. (Most tools now accept a frameSelector directly — prefer browser_click with frameSelector.)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        frameSelector: { type: "string", description: "CSS selector for the iframe element." },
+        selector: { type: "string", description: "CSS selector for the target element inside the iframe." },
+        timeout: { type: "number" },
+      },
+      required: ["frameSelector", "selector"],
+    },
+  },
+  {
+    name: "browser_iframe_fill",
+    description: "Shorthand for filling inside an iframe. (Most tools now accept a frameSelector directly — prefer browser_fill with frameSelector.)",
+    inputSchema: {
+      type: "object",
+      properties: {
+        frameSelector: { type: "string", description: "CSS selector for the iframe element." },
+        selector: { type: "string", description: "CSS selector for the input inside the iframe." },
+        value: { type: "string" },
+        timeout: { type: "number" },
+      },
+      required: ["frameSelector", "selector", "value"],
+    },
+  },
+  {
+    name: "browser_route_block",
+    description: "Block requests by resource type and/or URL pattern (e.g. block images/fonts/media to speed up loads and shrink fingerprint surface). Applies to all pages in the context.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        urlPattern: { type: "string", description: "Glob/URL pattern to match. Default **/* (all)." },
+        resourceTypes: {
+          type: "array",
+          items: { type: "string", enum: ["document", "stylesheet", "image", "media", "font", "script", "texttrack", "xhr", "fetch", "eventsource", "websocket", "manifest", "other"] },
+          description: "Resource types to abort. If omitted, blocks every request matching urlPattern.",
+        },
+      },
+    },
+  },
+  {
+    name: "browser_route_mock",
+    description: "Mock matching requests with a canned response (fulfill). Useful for stubbing APIs or bypassing endpoints.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        urlPattern: { type: "string", description: "Glob/URL pattern to match." },
+        status: { type: "number", description: "HTTP status, default 200." },
+        body: { type: "string", description: "Response body." },
+        contentType: { type: "string", description: "Content-Type, default text/plain." },
+      },
+      required: ["urlPattern"],
+    },
+  },
+  {
+    name: "browser_route_clear",
+    description: "Remove all active block/mock routes.",
+    inputSchema: { type: "object", properties: {} },
+  },
+  {
+    name: "browser_storage_save",
+    description: "Export current session (cookies + localStorage) as a Playwright storageState. Saves to path, or returns the state JSON if path omitted.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Output JSON file path. If omitted, returns the state inline." },
+      },
+    },
+  },
+  {
+    name: "browser_storage_load",
+    description: "Restore a session from a storageState (cookies + localStorage). Provide a file path or an inline state object. Note: localStorage restore navigates to each origin.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Path to a storageState JSON file." },
+        state: { type: "object", description: "Inline storageState object ({ cookies, origins })." },
+      },
+    },
+  },
+  {
+    name: "browser_save_pdf",
+    description: "Render the active page to PDF via CDP (works in headed/stealth mode). Saves to path, or returns base64 if path omitted.",
+    inputSchema: {
+      type: "object",
+      properties: {
+        path: { type: "string", description: "Output file path. If omitted, returns base64." },
+        landscape: { type: "boolean" },
+        printBackground: { type: "boolean", description: "Include background graphics. Default true." },
+        scale: { type: "number", description: "Render scale, default 1." },
+        format: { type: "string", enum: ["Letter", "Legal", "Tabloid", "A3", "A4", "A5"] },
+      },
     },
   },
   {

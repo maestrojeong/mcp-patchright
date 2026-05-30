@@ -1,3 +1,4 @@
+import { readFile, writeFile } from "node:fs/promises";
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import type { Dialog, Locator, Page } from "patchright";
 import type { BrowserManager } from "../browser/manager.js";
@@ -13,6 +14,16 @@ import {
   dragDropSchema,
   fillFormSchema,
   runCodeSchema,
+  savePdfSchema,
+  apiRequestSchema,
+  visibleTextSchema,
+  visibleHtmlSchema,
+  iframeClickSchema,
+  iframeFillSchema,
+  routeBlockSchema,
+  routeMockSchema,
+  storageSaveSchema,
+  storageLoadSchema,
   evaluateSchema,
   fillSchema,
   navigateSchema,
@@ -27,6 +38,12 @@ import {
 } from "./schemas.js";
 
 type ToolResult = CallToolResult;
+
+function truncate(value: string, max?: number): { text: string; truncated: boolean; length: number } {
+  const limit = max ?? 100_000;
+  if (value.length <= limit) return { text: value, truncated: false, length: value.length };
+  return { text: value.slice(0, limit), truncated: true, length: value.length };
+}
 
 function text(value: unknown): ToolResult {
   return {
@@ -45,9 +62,20 @@ function image(data: Buffer): ToolResult {
   };
 }
 
-function locatorFor(page: Page, target: { selector?: string; ref?: string }): Locator {
-  if (target.ref) return page.locator(`aria-ref=${target.ref}`);
-  if (target.selector) return page.locator(target.selector);
+// CDP Page.printToPDF takes paper dimensions in inches.
+const PDF_PAPER: Record<string, { width: number; height: number }> = {
+  Letter: { width: 8.5, height: 11 },
+  Legal: { width: 8.5, height: 14 },
+  Tabloid: { width: 11, height: 17 },
+  A3: { width: 11.69, height: 16.54 },
+  A4: { width: 8.27, height: 11.69 },
+  A5: { width: 5.83, height: 8.27 },
+};
+
+function locatorFor(page: Page, target: { selector?: string; ref?: string; frameSelector?: string }): Locator {
+  const root = target.frameSelector ? page.frameLocator(target.frameSelector) : page;
+  if (target.ref) return root.locator(`aria-ref=${target.ref}`);
+  if (target.selector) return root.locator(target.selector);
   throw new Error("Missing selector or ref");
 }
 
@@ -306,9 +334,8 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const results: { name?: string; ok: boolean; error?: string }[] = [];
       for (const field of parsed.fields) {
         try {
-          const loc = field.selector ? page.locator(field.selector) : field.ref ? page.locator(`aria-ref=${field.ref}`) : null;
-          if (!loc) { results.push({ name: field.name, ok: false, error: "Missing selector or ref" }); continue; }
-          await loc.fill(field.value, { timeout: parsed.timeout ?? 30_000 });
+          if (!field.selector && !field.ref) { results.push({ name: field.name, ok: false, error: "Missing selector or ref" }); continue; }
+          await locatorFor(page, field).fill(field.value, { timeout: parsed.timeout ?? 30_000 });
           results.push({ name: field.name, ok: true });
         } catch (e: any) {
           results.push({ name: field.name, ok: false, error: e?.message ?? String(e) });
@@ -330,6 +357,128 @@ export async function handleTool(manager: BrowserManager, name: string, args: un
       const page = await manager.getPage();
       await page.context().setOffline(parsed.offline);
       return text({ ok: true, offline: parsed.offline });
+    }
+    case "browser_api_request": {
+      const parsed = apiRequestSchema.parse(args);
+      const page = await manager.getPage();
+      // context.request shares cookies/storage with the browser session,
+      // so authenticated API calls work without re-login.
+      const res = await page.context().request.fetch(parsed.url, {
+        method: parsed.method ?? "GET",
+        ...(parsed.headers ? { headers: parsed.headers } : {}),
+        ...(parsed.data !== undefined ? { data: parsed.data } : {}),
+        timeout: parsed.timeout ?? 30_000,
+      });
+      const body = truncate(await res.text(), parsed.maxBytes);
+      return text({
+        ok: res.ok(),
+        status: res.status(),
+        statusText: res.statusText(),
+        url: res.url(),
+        headers: res.headers(),
+        body: body.text,
+        truncated: body.truncated,
+        length: body.length,
+      });
+    }
+    case "browser_get_visible_text": {
+      const parsed = visibleTextSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const raw = await page.evaluate(() => document.body?.innerText ?? "");
+      const out = truncate(raw, parsed.maxLength);
+      return text({ url: page.url(), text: out.text, truncated: out.truncated, length: out.length });
+    }
+    case "browser_get_visible_html": {
+      const parsed = visibleHtmlSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const raw = await page.evaluate(
+        (opts: { selector: string | null; removeScripts: boolean }) => {
+          const root = opts.selector ? document.querySelector(opts.selector) : document.documentElement;
+          if (!root) return "";
+          const clone = root.cloneNode(true) as Element;
+          if (opts.removeScripts) clone.querySelectorAll("script,style,noscript,template,svg").forEach((n) => n.remove());
+          return clone.outerHTML ?? "";
+        },
+        { selector: parsed.selector ?? null, removeScripts: parsed.removeScripts ?? true },
+      );
+      const out = truncate(raw, parsed.maxLength);
+      return text({ url: page.url(), html: out.text, truncated: out.truncated, length: out.length });
+    }
+    case "browser_iframe_click": {
+      const parsed = iframeClickSchema.parse(args);
+      const page = await manager.getPage();
+      await page.frameLocator(parsed.frameSelector).locator(parsed.selector).click({ timeout: parsed.timeout ?? 30_000 });
+      return text({ ok: true });
+    }
+    case "browser_iframe_fill": {
+      const parsed = iframeFillSchema.parse(args);
+      const page = await manager.getPage();
+      await page.frameLocator(parsed.frameSelector).locator(parsed.selector).fill(parsed.value, { timeout: parsed.timeout ?? 30_000 });
+      return text({ ok: true });
+    }
+    case "browser_route_block": {
+      const parsed = routeBlockSchema.parse(args ?? {});
+      return text({ ok: true, routes: await manager.addBlockRoute(parsed) });
+    }
+    case "browser_route_mock": {
+      const parsed = routeMockSchema.parse(args);
+      return text({ ok: true, routes: await manager.addMockRoute(parsed) });
+    }
+    case "browser_route_clear": {
+      const cleared = await manager.clearRoutes();
+      return text({ ok: true, cleared });
+    }
+    case "browser_storage_save": {
+      const parsed = storageSaveSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      const state = await page.context().storageState(parsed.path ? { path: parsed.path } : {});
+      if (parsed.path) {
+        return text({ ok: true, path: parsed.path, cookies: state.cookies.length, origins: state.origins.length });
+      }
+      return text(state);
+    }
+    case "browser_storage_load": {
+      const parsed = storageLoadSchema.parse(args);
+      const page = await manager.getPage();
+      const ctx = page.context();
+      const state = parsed.state ?? JSON.parse(await readFile(parsed.path!, "utf8"));
+      if (state.cookies?.length) await ctx.addCookies(state.cookies);
+      // Persistent contexts can't ingest storageState at launch, so restore
+      // localStorage by visiting each origin and writing entries directly.
+      let originsApplied = 0;
+      for (const origin of state.origins ?? []) {
+        if (!origin.localStorage?.length) continue;
+        await page.goto(origin.origin, { waitUntil: "domcontentloaded", timeout: 30_000 }).catch(() => undefined);
+        await page.evaluate((items: { name: string; value: string }[]) => {
+          for (const item of items) localStorage.setItem(item.name, item.value);
+        }, origin.localStorage);
+        originsApplied++;
+      }
+      return text({ ok: true, cookies: state.cookies?.length ?? 0, origins: originsApplied });
+    }
+    case "browser_save_pdf": {
+      const parsed = savePdfSchema.parse(args ?? {});
+      const page = await manager.getPage();
+      // page.pdf() only works in headless Chromium, so drive CDP Page.printToPDF
+      // directly — this works in headed/stealth mode too.
+      const client = await page.context().newCDPSession(page);
+      const paper = parsed.format ? PDF_PAPER[parsed.format] : undefined;
+      try {
+        const { data } = await client.send("Page.printToPDF", {
+          landscape: parsed.landscape ?? false,
+          printBackground: parsed.printBackground ?? true,
+          scale: parsed.scale ?? 1,
+          ...(paper ? { paperWidth: paper.width, paperHeight: paper.height } : {}),
+        });
+        const buf = Buffer.from(data, "base64");
+        if (parsed.path) {
+          await writeFile(parsed.path, buf);
+          return text({ ok: true, path: parsed.path, bytes: buf.length });
+        }
+        return text({ ok: true, bytes: buf.length, pdfBase64: data });
+      } finally {
+        await client.detach().catch(() => undefined);
+      }
     }
     case "browser_close": {
       await manager.close();

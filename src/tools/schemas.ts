@@ -10,6 +10,18 @@ export const startSchema = z.object({
   channel: z.enum(["chrome", "chrome-beta", "chrome-dev", "chrome-canary", "msedge"]).optional(),
   locale: z.string().optional(),
   timezoneId: z.string().optional(),
+  proxy: z.object({
+    server: z.string(),
+    username: z.string().optional(),
+    password: z.string().optional(),
+    bypass: z.string().optional(),
+  }).optional(),
+  geolocation: z.object({
+    latitude: z.number(),
+    longitude: z.number(),
+    accuracy: z.number().optional(),
+  }).optional(),
+  colorScheme: z.enum(["light", "dark", "no-preference"]).optional(),
   cdpEndpoint: z.string().url().optional(),
 });
 
@@ -40,6 +52,7 @@ export const targetSchema = z
   .object({
     selector: z.string().min(1).optional(),
     ref: z.string().min(1).optional(),
+    frameSelector: z.string().min(1).optional(),
     timeout: z.number().int().positive().optional(),
   })
   .refine((value) => !!value.selector !== !!value.ref, {
@@ -59,12 +72,14 @@ export const pressSchema = z.object({
   key: z.string().min(1),
   selector: z.string().optional(),
   ref: z.string().optional(),
+  frameSelector: z.string().optional(),
   timeout: z.number().int().positive().optional(),
 });
 
 export const waitForSchema = z.object({
   selector: z.string().min(1).optional(),
   ref: z.string().min(1).optional(),
+  frameSelector: z.string().min(1).optional(),
   state: z.enum(["attached", "detached", "visible", "hidden"]).optional(),
   timeout: z.number().int().positive().optional(),
 }).refine((value) => !(value.selector && value.ref), {
@@ -116,8 +131,8 @@ export const resizeSchema = z.object({
 });
 
 export const dragDropSchema = z.object({
-  source: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
-  target: z.object({ selector: z.string().optional(), ref: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  source: z.object({ selector: z.string().optional(), ref: z.string().optional(), frameSelector: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
+  target: z.object({ selector: z.string().optional(), ref: z.string().optional(), frameSelector: z.string().optional() }).refine(v => !!v.selector !== !!v.ref, { message: "Provide exactly one of selector or ref" }),
   timeout: z.number().int().positive().optional(),
 });
 
@@ -125,6 +140,7 @@ export const fillFormSchema = z.object({
   fields: z.array(z.object({
     selector: z.string().optional(),
     ref: z.string().optional(),
+    frameSelector: z.string().optional(),
     name: z.string().optional(),
     value: z.string(),
   })).min(1),
@@ -134,4 +150,75 @@ export const fillFormSchema = z.object({
 export const runCodeSchema = z.object({
   script: z.string().min(1),
   args: z.array(z.unknown()).optional(),
+});
+
+const resourceTypeEnum = z.enum([
+  "document", "stylesheet", "image", "media", "font", "script",
+  "texttrack", "xhr", "fetch", "eventsource", "websocket", "manifest", "other",
+]);
+
+export const routeBlockSchema = z.object({
+  urlPattern: z.string().optional(),
+  resourceTypes: z.array(resourceTypeEnum).optional(),
+});
+
+export const routeMockSchema = z.object({
+  urlPattern: z.string().min(1),
+  status: z.number().int().optional(),
+  body: z.string().optional(),
+  contentType: z.string().optional(),
+});
+
+export const storageSaveSchema = z.object({
+  path: z.string().optional(),
+});
+
+export const storageLoadSchema = z.object({
+  path: z.string().optional(),
+  state: z.object({
+    cookies: z.array(z.record(z.string(), z.unknown())).optional(),
+    origins: z.array(z.object({
+      origin: z.string(),
+      localStorage: z.array(z.object({ name: z.string(), value: z.string() })),
+    })).optional(),
+  }).optional(),
+}).refine((v) => !!v.path || !!v.state, {
+  message: "Provide path or state",
+});
+
+export const apiRequestSchema = z.object({
+  url: z.string().url(),
+  method: z.enum(["GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"]).optional(),
+  headers: z.record(z.string(), z.string()).optional(),
+  data: z.union([z.string(), z.record(z.string(), z.unknown())]).optional(),
+  timeout: z.number().int().positive().optional(),
+  maxBytes: z.number().int().positive().optional(),
+});
+
+export const visibleTextSchema = z.object({
+  maxLength: z.number().int().positive().optional(),
+});
+
+export const visibleHtmlSchema = z.object({
+  selector: z.string().optional(),
+  removeScripts: z.boolean().optional(),
+  maxLength: z.number().int().positive().optional(),
+});
+
+export const iframeClickSchema = z.object({
+  frameSelector: z.string().min(1),
+  selector: z.string().min(1),
+  timeout: z.number().int().positive().optional(),
+});
+
+export const iframeFillSchema = iframeClickSchema.extend({
+  value: z.string(),
+});
+
+export const savePdfSchema = z.object({
+  path: z.string().optional(),
+  landscape: z.boolean().optional(),
+  printBackground: z.boolean().optional(),
+  scale: z.number().positive().optional(),
+  format: z.enum(["Letter", "Legal", "Tabloid", "A3", "A4", "A5"]).optional(),
 });
